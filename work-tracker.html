@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="work-tracker">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIiB2aWV3Qm94PSIwIDAgMTgwIDE4MCI+CiAgPHJlY3Qgd2lkdGg9IjE4MCIgaGVpZ2h0PSIxODAiIHJ4PSI0MCIgZmlsbD0iIzRhOWU2YiIvPgogIDx0ZXh0IHg9IjkwIiB5PSIxMjUiIGZvbnQtc2l6ZT0iMTAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXBwbGUgQ29sb3IgRW1vamksIFNlZ29lIFVJIEVtb2ppLCBzYW5zLXNlcmlmIj7wn42JPC90ZXh0Pgo8L3N2Zz4=">
 <title>업무 트래커</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Space+Mono:wght@400;700&display=swap');
@@ -220,6 +221,12 @@
   .save-btn:active {
     background: var(--accent4);
     border-color: var(--accent4);
+    color: #fff;
+  }
+
+  .minus-btn:active {
+    background: var(--accent1) !important;
+    border-color: var(--accent1) !important;
     color: #fff;
   }
 
@@ -451,19 +458,20 @@ function renderCards() {
       </div>
 
       <div class="input-row">
-        <span class="input-label">오늘까지</span>
+        <span class="input-label">오늘 읽은</span>
         <input
           class="page-input"
           type="number"
           id="input-${i}"
           inputmode="numeric"
           pattern="[0-9]*"
-          placeholder="${cur || '페이지 입력'}"
+          placeholder="페이지 수"
           min="0"
           max="${b.total}"
-          value="${cur || ''}"
+          value=""
         >
-        <button class="save-btn" onclick="update(${i})">저장</button>
+        <button class="save-btn" onclick="update(${i}, 1)">+추가</button>
+        <button class="save-btn minus-btn" onclick="update(${i}, -1)">−빼기</button>
       </div>
     </div>`;
   }).join('');
@@ -476,40 +484,39 @@ function renderCards() {
   });
 }
 
-function update(i) {
+function update(i, direction) {
   const input = document.getElementById(`input-${i}`);
   const val = parseInt(input.value, 10);
-  if (isNaN(val) || val < 0) { showToast('올바른 페이지를 입력해요!', true); return; }
+  if (isNaN(val) || val <= 0) { showToast('페이지 수를 입력해요!', true); return; }
 
   const b = BOOKS[i];
-  const clamped = Math.min(val, b.total);
-  progress[i] = clamped;
+  const newTotal = Math.min(Math.max((progress[i] || 0) + val * direction, 0), b.total);
+  progress[i] = newTotal;
   saveProgress(progress);
 
-  // Update DOM without full re-render
-  const p = pct(clamped, b.total);
-  const remain = b.total - clamped;
+  const p = pct(newTotal, b.total);
+  const remain = b.total - newTotal;
 
   document.getElementById(`bar-${i}`).style.width = p + '%';
-  document.getElementById(`cur-${i}`).textContent = clamped + 'p';
+  document.getElementById(`cur-${i}`).textContent = newTotal + 'p';
   document.getElementById(`rem-${i}`).textContent = remain + 'p';
 
-  // Update pct display
   const card = document.getElementById(`card-${i}`);
   card.querySelectorAll('.stat-val.pct')[0].innerHTML =
     `${p}<span style="font-size:14px">%</span>`;
 
-  if (clamped >= b.total) {
+  if (newTotal >= b.total) {
     card.classList.add('is-complete');
   } else {
     card.classList.remove('is-complete');
   }
 
-  input.value = clamped;
-  input.placeholder = clamped;
+  input.value = '';
+  input.placeholder = '페이지 수';
 
   renderSummary();
-  showToast(`${b.emoji} ${clamped}p 저장됐어요 ✓`);
+  const sign = direction > 0 ? '+' : '−';
+  showToast(`${b.emoji} ${sign}${val}p ${direction > 0 ? '추가' : '취소'}됐어요 ✓`);
 }
 
 function showToast(msg, isError) {
